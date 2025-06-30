@@ -11,12 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { GithubIcon, Loader } from "lucide-react";
-import { useTransition } from "react";
+import { GithubIcon, Loader2, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 export function SignInForm() {
+  const router = useRouter();
   const [isGitHubPending, startGitHubTransition] = useTransition();
+  const [isEmailPending, startEmailTransition] = useTransition();
+  const [email, setEmail] = useState("");
 
   async function handleGitHubSignIn() {
     startGitHubTransition(async () => {
@@ -24,11 +28,30 @@ export function SignInForm() {
         provider: "github",
         callbackURL: "/",
         fetchOptions: {
-          onSuccess: (response) => {
+          onSuccess: () => {
             toast.success("Signed in successfully with GitHub! Redirecting...");
           },
           onError: () => {
-            toast.error("Failed to sign in");
+            toast.error("Error signing in!");
+          },
+        },
+      });
+    });
+  }
+
+  async function handleEmailSignIn() {
+    startEmailTransition(async () => {
+      console.log("Sending email verification for:", email);
+      await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Check your email for the sign-in link!");
+            router.push(`/verify-request?email=${encodeURIComponent(email)}`);
+          },
+          onError: () => {
+            toast.error("Failed to send sign-in link");
           },
         },
       });
@@ -40,7 +63,7 @@ export function SignInForm() {
       <CardHeader>
         <CardTitle className="text-xl">Welcome back!</CardTitle>
         <CardDescription>
-          Sign in with your Email or GitHub account
+          Sign in with your GitHub or Email Account
         </CardDescription>
       </CardHeader>
 
@@ -54,7 +77,7 @@ export function SignInForm() {
         >
           {isGitHubPending ? (
             <>
-              <Loader className="mr-2 size-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin" />
               <span>loading...</span>
             </>
           ) : (
@@ -74,10 +97,29 @@ export function SignInForm() {
         <div className="grid gap-3">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="zoe@example.com" />
+            <Input
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="zoe@example.com"
+              required
+            />
           </div>
 
-          <Button>Continue with Email</Button>
+          <Button onClick={handleEmailSignIn} disabled={isEmailPending}>
+            {isEmailPending ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                <span>Sending...</span>
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 size-4" />
+                <span className="mr-2">Continue with Email</span>
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>
